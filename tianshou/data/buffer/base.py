@@ -2,6 +2,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 import h5py
 import numpy as np
+import os, re
 
 from tianshou.data import Batch
 from tianshou.data.batch import _alloc_by_keys_diff, _create_value
@@ -94,10 +95,28 @@ class ReplayBuffer:
     @classmethod
     def load_hdf5(cls, path: str, device: Optional[str] = None) -> "ReplayBuffer":
         """Load replay buffer from HDF5 file."""
-        with h5py.File(path, "r") as f:
+        
+        if os.path.isdir(path):
+            regex = re.compile('expert\.\d{1}\.hdf5$')
+            hdf5_files = []
+            for root, dirs, files in os.walk(path):
+                for file in files:
+                    if regex.match(file):
+                        hdf5_files.append(file)
+            
+            batches = []
+            for file in hdf5_files:
+                with h5py.File(os.path.join(path, file), "r") as f:
+                    batch = from_hdf5(f, device=device)
+                    batches.append(batch)
             buf = cls.__new__(cls)
-            buf.__setstate__(from_hdf5(f, device=device))
-        return buf
+            buf.__setstate__(Batch.cat(batches))
+            return buf
+        else:
+            with h5py.File(path, "r") as f:
+                buf = cls.__new__(cls)
+                buf.__setstate__(from_hdf5(f, device=device))
+            return buf
 
     def reset(self, keep_statistics: bool = False) -> None:
         """Clear all the data in replay buffer and episode statistics."""
@@ -242,6 +261,7 @@ class ReplayBuffer:
         Return all available indices in the buffer if batch_size is 0; return an empty
         numpy array if batch_size < 0 or no available index can be sampled.
         """
+
         if self.stack_num == 1 or not self._sample_avail:  # most often case
             if batch_size > 0:
                 return np.random.choice(self._size, batch_size)

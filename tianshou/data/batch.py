@@ -394,6 +394,7 @@ class Batch:
         """
         # partial keys will be padded by zeros
         # with the shape of [len, rest_shape]
+
         sum_lens = [0]
         for x in lens:
             sum_lens.append(sum_lens[-1] + x)
@@ -416,7 +417,13 @@ class Batch:
             else:
                 # cat Batch(a=np.zeros((3, 4))) and Batch(a=Batch(b=Batch()))
                 # will fail here
-                v = np.concatenate(v)
+                try:
+                    v = np.concatenate(v)
+                except:
+                    try:
+                        v = np.concatenate([v])
+                    except:
+                        v = np.concatenate((v))
                 self.__dict__[k] = _to_array_with_correct_type(v)
         keys_total = set.union(*[set(b.keys()) for b in batches])
         keys_reserve_or_partial = set.difference(keys_total, keys_shared)
@@ -458,18 +465,20 @@ class Batch:
                 raise ValueError(f"Cannot concatenate {type(b)} in Batch.cat_")
         if len(batch_list) == 0:
             return
-        batches = batch_list
         try:
             # x.is_empty(recurse=True) here means x is a nested empty batch
             # like Batch(a=Batch), and we have to treat it as length zero and
             # keep it.
-            lens = [0 if x.is_empty(recurse=True) else len(x) for x in batches]
+            lens = []
+            for i in range(len(batches)):
+                lens.append(0 if batch_list[i].is_empty(recurse=True) else len(batches[i]))
         except TypeError as e:
             raise ValueError(
                 "Batch.cat_ meets an exception. Maybe because there is any "
                 f"scalar in {batches} but Batch.cat_ does not support the "
                 "concatenation of scalar."
             ) from e
+        batches = batch_list
         if not self.is_empty():
             batches = [self] + list(batches)
             lens = [0 if self.is_empty(recurse=True) else len(self)] + lens

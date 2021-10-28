@@ -38,7 +38,9 @@ class DQN(nn.Module):
                 self.net, nn.Linear(self.output_dim, 512), nn.ReLU(inplace=True),
                 nn.Linear(512, np.prod(action_shape))
             )
-            self.output_dim = np.prod(action_shape)
+            self.output_dim = np.prod(action_shape) 
+            
+        print(self)
 
     def forward(
         self,
@@ -47,6 +49,8 @@ class DQN(nn.Module):
         info: Dict[str, Any] = {},
     ) -> Tuple[torch.Tensor, Any]:
         r"""Mapping: x -> Q(x, \*)."""
+        if len(x.shape) == 3: x = np.expand_dims(x, axis=1)
+
         x = torch.as_tensor(x, device=self.device, dtype=torch.float32)
         return self.net(x), state
 

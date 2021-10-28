@@ -101,7 +101,7 @@ def offline_trainer(
             gradient_step, reward_metric
         )
         rew, rew_std = test_result["rew"], test_result["rew_std"]
-        if best_epoch < 0 or best_reward < rew:
+        if best_epoch < 0 or best_reward <= rew:
             best_epoch, best_reward, best_reward_std = epoch, rew, rew_std
             if save_fn:
                 save_fn(policy)
